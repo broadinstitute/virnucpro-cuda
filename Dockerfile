@@ -64,8 +64,6 @@ COPY virnucpro.py virnucpro_cli.py /opt/
 
 # Set environment variables
 ENV VIRNUCPRO_PATH="/opt/VirNucPro"
-# Version file copied from builder stage for runtime access
-COPY --from=builder /tmp/virnucpro_version.txt /tmp/virnucpro_version.txt
 ENV PATH="/usr/local/bin:${PATH}"
 
 # Set working directory
