@@ -26,6 +26,8 @@ jobs:
       - name: Run unit tests
         run: |
           pytest tests/test_*.py -v
+        env:
+          PYTHONPATH: .
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -60,4 +62,5 @@ jobs:
         run: |
           pytest tests/integration/ -v
         env:
+          PYTHONPATH: .
           VIRNUCPRO_DOCKER_IMAGE: virnucpro-cuda:test
