@@ -30,7 +30,7 @@ jobs:
           PYTHONPATH: .
 
   integration-tests:
-    runs-on: ubuntu-latest
+    runs-on: gpu-t4-4-core
 
     steps:
       - name: Checkout code
