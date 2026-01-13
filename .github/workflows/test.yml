@@ -87,8 +87,10 @@ jobs:
         run: |
           pip install pytest pytest-mock pysam
 
-      - name: Run integration tests (CPU mode)
+      - name: Run integration tests
         run: |
+          # Note: GPU tests will be skipped on GitHub Actions (no GPU available)
+          # Only empty BAM test and unit tests will run
           pytest tests/integration/ -v
         env:
           PYTHONPATH: .
