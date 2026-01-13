@@ -1,0 +1,12 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Markdown dev files
+plan-*.md
+QR_*.md

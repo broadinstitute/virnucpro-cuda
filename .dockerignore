@@ -1,0 +1,17 @@
+# Version control
+.git/
+.github/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Tests
+tests/
+.pytest_cache/
+
+# Documentation (except root README)
+*.md
+!README.md
+!CLAUDE.md

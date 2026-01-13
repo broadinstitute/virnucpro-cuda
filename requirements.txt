@@ -1,0 +1,5 @@
+# Python wrapper dependencies for VirNucPro container
+# VirNucPro's own dependencies are installed separately from VirNucPro/requirements.txt
+
+# BAM file reading support
+pysam>=0.19.0

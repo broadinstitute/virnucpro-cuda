@@ -1,0 +1,13 @@
+[workspace]
+authors = ["Cesar Arze <cesar.arze@gmail.com>"]
+channels = ["conda-forge", "bioconda"]
+name = "virnucpro-cuda"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+pysam = "*"
+pytest = "*"
+pytest-mock = "*"
