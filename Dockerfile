@@ -40,6 +40,13 @@ RUN pip3 install --no-cache-dir -r /opt/VirNucPro/requirements.txt
 # Triton adds no value for VirNucPro's inference-only use case. Per VirNucPro README recommendation.
 RUN pip3 uninstall -y triton || true
 
+# Clean up Python packages to reduce layer size
+RUN find /usr/local/lib/python3.10/dist-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local/lib/python3.10/dist-packages -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local/lib/python3.10/dist-packages -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local/lib/python3.10/dist-packages -type f -name "*.pyc" -delete 2>/dev/null || true && \
+    find /usr/local/lib/python3.10/dist-packages -type f -name "*.pyo" -delete 2>/dev/null || true
+
 # Runtime stage: minimal production image with only necessary artifacts
 FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
