@@ -9,7 +9,7 @@ FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04 AS builder
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
     git \
-    python3.9 \
+    python3 \
     python3-pip \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -45,16 +45,17 @@ FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
-    python3.9 \
+    python3 \
     python3-distutils \
     samtools \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/bin/python3 /usr/bin/python
 
 # Copy VirNucPro installation from builder
 COPY --from=builder /opt/VirNucPro /opt/VirNucPro
 
 # Copy Python packages from builder
-COPY --from=builder /usr/local/lib/python3.9/dist-packages /usr/local/lib/python3.9/dist-packages
+COPY --from=builder /usr/local/lib/python3.10/dist-packages /usr/local/lib/python3.10/dist-packages
 
 # Copy VirNucPro version file from builder
 COPY --from=builder /tmp/virnucpro_version.txt /tmp/virnucpro_version.txt
