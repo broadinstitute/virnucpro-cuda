@@ -70,6 +70,9 @@ COPY --from=builder /tmp/virnucpro_version.txt /tmp/virnucpro_version.txt
 # Copy Python wrapper files
 COPY virnucpro.py virnucpro_cli.py /opt/
 
+# Set execute permissions on Python wrapper files
+RUN chmod +x /opt/virnucpro.py /opt/virnucpro_cli.py
+
 # Set environment variables
 ENV VIRNUCPRO_PATH="/opt/VirNucPro"
 ENV PATH="/usr/local/bin:${PATH}"
