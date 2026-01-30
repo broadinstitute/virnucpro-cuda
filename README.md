@@ -162,6 +162,7 @@ docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /da
 | `--dnabert-batch-size` | Token batch size for DNABERT-S (default: 2048) |
 | `--esm-batch-size` | Token batch size for ESM-2 (default: 2048) |
 | `--threads` | CPU threads for translation and merge |
+| `--persistent-models` | Keep models in GPU memory between stages |
 | `--verbose` | Enable debug logging |
 | `--virnucpro-path` | Path to VirNucPro installation |
 

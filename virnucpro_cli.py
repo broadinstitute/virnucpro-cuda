@@ -136,6 +136,12 @@ Examples:
         help='Number of CPU threads for translation and merge (default: auto-detect)'
     )
 
+    perf_group.add_argument(
+        '--persistent-models',
+        action='store_true',
+        help='Keep models loaded in GPU memory between pipeline stages (reduces loading overhead but uses more memory)'
+    )
+
     # Other options
     parser.add_argument(
         '--virnucpro-path',
@@ -180,7 +186,8 @@ def main():
             batch_size=args.batch_size,
             dnabert_batch_size=args.dnabert_batch_size,
             esm_batch_size=args.esm_batch_size,
-            threads=args.threads
+            threads=args.threads,
+            persistent_models=args.persistent_models
         )
         logging.info("Classification complete: %s", args.output_tsv)
     except Exception as e:

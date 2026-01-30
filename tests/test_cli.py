@@ -54,7 +54,8 @@ def test_cli_basic_invocation():
             batch_size=None,
             dnabert_batch_size=None,
             esm_batch_size=None,
-            threads=None
+            threads=None,
+            persistent_models=False
         )
 
 
@@ -77,7 +78,8 @@ def test_cli_expected_length():
             batch_size=None,
             dnabert_batch_size=None,
             esm_batch_size=None,
-            threads=None
+            threads=None,
+            persistent_models=False
         )
 
 
@@ -119,7 +121,8 @@ def test_cli_use_gpu_flag():
             batch_size=None,
             dnabert_batch_size=None,
             esm_batch_size=None,
-            threads=None
+            threads=None,
+            persistent_models=False
         )
 
 
@@ -142,7 +145,8 @@ def test_cli_no_gpu_flag():
             batch_size=None,
             dnabert_batch_size=None,
             esm_batch_size=None,
-            threads=None
+            threads=None,
+            persistent_models=False
         )
 
 
@@ -191,7 +195,8 @@ def test_cli_parallel_flag():
             batch_size=None,
             dnabert_batch_size=None,
             esm_batch_size=None,
-            threads=None
+            threads=None,
+            persistent_models=False
         )
 
 
@@ -214,7 +219,8 @@ def test_cli_gpus_option():
             batch_size=None,
             dnabert_batch_size=None,
             esm_batch_size=None,
-            threads=None
+            threads=None,
+            persistent_models=False
         )
 
 
@@ -242,7 +248,8 @@ def test_cli_batch_size_options():
             batch_size=128,
             dnabert_batch_size=1024,
             esm_batch_size=512,
-            threads=None
+            threads=None,
+            persistent_models=False
         )
 
 
@@ -265,7 +272,8 @@ def test_cli_threads_option():
             batch_size=None,
             dnabert_batch_size=None,
             esm_batch_size=None,
-            threads=8
+            threads=8,
+            persistent_models=False
         )
 
 
@@ -293,5 +301,30 @@ def test_cli_multi_gpu_parallel():
             batch_size=None,
             dnabert_batch_size=None,
             esm_batch_size=None,
-            threads=16
+            threads=16,
+            persistent_models=False
+        )
+
+
+def test_cli_persistent_models_flag():
+    """Verify --persistent-models flag is passed correctly."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', ['virnucpro_cli.py', 'input.bam', 'output.tsv', '--persistent-models']):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            'output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None,
+            persistent_models=True
         )
