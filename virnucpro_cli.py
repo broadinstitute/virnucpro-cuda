@@ -43,7 +43,22 @@ def parse_args():
         Namespace object containing parsed arguments.
     """
     parser = argparse.ArgumentParser(
-        description='VirNucPro: Classify viral sequences using DNABERT_S and ESM2-3B models.'
+        description='VirNucPro: Classify viral sequences using DNABERT_S and ESM2-3B models.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  # Basic prediction with 500bp model
+  virnucpro_cli.py input.bam output.tsv
+
+  # Use 300bp model with CPU only
+  virnucpro_cli.py input.bam output.tsv --expected-length 300 --no-gpu
+
+  # Use multiple GPUs in parallel
+  virnucpro_cli.py input.bam output.tsv --gpus 0,1,2,3 --parallel
+
+  # Custom batch sizes for memory-constrained systems
+  virnucpro_cli.py input.bam output.tsv --dnabert-batch-size 1024 --esm-batch-size 1024
+'''
     )
 
     parser.add_argument(
@@ -64,18 +79,64 @@ def parse_args():
         help='Expected sequence length (bp)'
     )
 
-    parser.add_argument(
+    # GPU/Device options
+    gpu_group = parser.add_argument_group('GPU Options')
+    gpu_group.add_argument(
         '--use-gpu',
         action='store_true',
         help='Force GPU usage'
     )
 
-    parser.add_argument(
+    gpu_group.add_argument(
         '--no-gpu',
         action='store_true',
         help='Force CPU usage (disable GPU)'
     )
 
+    gpu_group.add_argument(
+        '--gpus',
+        type=str,
+        default=None,
+        help='Comma-separated GPU IDs to use (e.g., "0,1,2"). Overrides CUDA_VISIBLE_DEVICES.'
+    )
+
+    gpu_group.add_argument(
+        '--parallel',
+        action='store_true',
+        help='Enable multi-GPU parallel processing for feature extraction'
+    )
+
+    # Performance options
+    perf_group = parser.add_argument_group('Performance Options')
+    perf_group.add_argument(
+        '--batch-size',
+        type=int,
+        default=None,
+        help='Batch size for prediction DataLoader'
+    )
+
+    perf_group.add_argument(
+        '--dnabert-batch-size',
+        type=int,
+        default=None,
+        help='Token batch size for DNABERT-S processing (default: 2048)'
+    )
+
+    perf_group.add_argument(
+        '--esm-batch-size',
+        type=int,
+        default=None,
+        help='Token batch size for ESM-2 processing (default: 2048). Reduce if encountering OOM errors.'
+    )
+
+    perf_group.add_argument(
+        '--threads',
+        type=int,
+        default=None,
+        help='Number of CPU threads for translation and merge (default: auto-detect)'
+    )
+
+    # Other options
     parser.add_argument(
         '--virnucpro-path',
         help='Path to VirNucPro installation (default: $VIRNUCPRO_PATH)'
@@ -113,7 +174,13 @@ def main():
             args.input_bam,
             args.output_tsv,
             expected_length=args.expected_length,
-            use_gpu=gpu_mode
+            use_gpu=gpu_mode,
+            parallel=args.parallel,
+            gpus=args.gpus,
+            batch_size=args.batch_size,
+            dnabert_batch_size=args.dnabert_batch_size,
+            esm_batch_size=args.esm_batch_size,
+            threads=args.threads
         )
         logging.info("Classification complete: %s", args.output_tsv)
     except Exception as e:

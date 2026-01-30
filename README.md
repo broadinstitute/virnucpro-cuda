@@ -1,6 +1,12 @@
 # VirNucPro Standalone Docker Container
 
-VirNucPro is a viral sequence classifier using DNABERT_S and ESM2-3B language models for identifying short viral sequences (300bp or 500bp). This standalone Docker container provides GPU-accelerated classification with automatic CPU fallback, designed for cloud pipeline deployment (GCE/dsub/Cromwell/WDL).
+VirNucPro is a viral sequence classifier using DNABERT_S and ESM2-3B language models for identifying short viral sequences (300bp or 500bp). This standalone Docker container provides GPU-accelerated classification with **multi-GPU parallel processing support**, automatic CPU fallback, and is designed for cloud pipeline deployment (GCE/dsub/Cromwell/WDL).
+
+**Features:**
+- Multi-GPU parallel processing for 150-380x speedup
+- Checkpoint-based resume for interrupted runs
+- Memory optimization for large datasets
+- Backward-compatible BAM input interface
 
 ## Architecture
 
@@ -40,17 +46,18 @@ User (Cloud Pipeline)
 |        | FASTA (unique)   |
 |        v                  |
 |  +-----------------+      |
-|  | VirNucPro       |      |
+|  | VirNucPro CLI   |      |
 |  | subprocess call |      |
 |  +-----------------+      |
 |        |                  |
 |        v                  |
 |  +------------------+     |
-|  | /opt/VirNucPro/  |     |
-|  | prediction.py    |     |
+|  | python -m        |     |
+|  | virnucpro predict|     |
 |  +------------------+     |
 |        |                  |
-|        | PyTorch models   |
+|        | Multi-GPU        |
+|        | Parallel         |
 |        v                  |
 |  +------------------+     |
 |  | DNABERT_S +      |     |
@@ -86,14 +93,14 @@ FASTA (unique sequence IDs required by ESM model)
    |
    | Written to temp directory
    v
-Subprocess: python prediction.py input.fasta 300|500 model.pth
+Subprocess: python -m virnucpro predict input.fasta --model-type 300|500
    |
-   | VirNucPro performs:
+   | VirNucPro performs (with optional multi-GPU parallel):
    |  - Sequence chunking to expected length
-   |  - Six-frame translation
-   |  - DNABERT_S embedding (nucleotide)
-   |  - ESM2-3B embedding (amino acid)
-   |  - Feature concatenation
+   |  - Six-frame translation (CPU parallel)
+   |  - DNABERT_S embedding (nucleotide, GPU parallel)
+   |  - ESM2-3B embedding (amino acid, GPU parallel)
+   |  - Feature concatenation (CPU parallel)
    |  - MLP classification
    v
 Intermediate: input_unique_merged/prediction_results.txt
@@ -123,6 +130,40 @@ docker run -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.ba
 # Force GPU mode
 docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.bam /data/output.tsv --use-gpu
 ```
+
+### Multi-GPU Parallel Processing
+
+For large datasets, leverage multi-GPU parallel processing for 150-380x speedup:
+
+```bash
+# Use all available GPUs in parallel mode
+docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.bam /data/output.tsv --parallel
+
+# Specify specific GPUs
+docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.bam /data/output.tsv --gpus 0,1,2,3 --parallel
+
+# Custom batch sizes for memory-constrained systems
+docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.bam /data/output.tsv --dnabert-batch-size 1024 --esm-batch-size 512
+
+# Specify CPU threads for translation and merge steps
+docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.bam /data/output.tsv --threads 16
+```
+
+### CLI Options
+
+| Option | Description |
+|--------|-------------|
+| `--expected-length` | Expected sequence length: 300 or 500 (default: 500) |
+| `--use-gpu` | Force GPU usage |
+| `--no-gpu` | Force CPU usage (disable GPU) |
+| `--gpus` | Comma-separated GPU IDs (e.g., "0,1,2") |
+| `--parallel` | Enable multi-GPU parallel processing |
+| `--batch-size` | Batch size for prediction DataLoader |
+| `--dnabert-batch-size` | Token batch size for DNABERT-S (default: 2048) |
+| `--esm-batch-size` | Token batch size for ESM-2 (default: 2048) |
+| `--threads` | CPU threads for translation and merge |
+| `--verbose` | Enable debug logging |
+| `--virnucpro-path` | Path to VirNucPro installation |
 
 ### Input Format
 
@@ -166,10 +207,11 @@ read2          virus         0.87      0.13
 
 ### VirNucPro as Subprocess
 
-VirNucPro's prediction.py expects command-line invocation, not library import. Subprocess execution provides:
+VirNucPro uses `python -m virnucpro predict` for command-line invocation. Subprocess execution provides:
 - Isolation preventing PyTorch memory leaks in wrapper process
 - Consistency with viral-classify pattern for tool integration
 - Negligible overhead (~50-100ms process spawn) for minute-scale PyTorch inference
+- Clean separation between BAM handling (wrapper) and ML inference (VirNucPro)
 
 ### Unique FASTA ID Enforcement
 
@@ -357,6 +399,7 @@ See LICENSE file for licensing information.
 
 ## References
 
-- VirNucPro: https://github.com/Li-Jing-1997/VirNucPro
+- VirNucPro (Broad refactored): https://github.com/broadinstitute/virnucpro
+- VirNucPro (original): https://github.com/Li-Jing-1997/VirNucPro
 - DNABERT_S: Language model for nucleotide sequences
 - ESM2-3B: Protein language model from fair-esm

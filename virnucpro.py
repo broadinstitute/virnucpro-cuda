@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 
 import pysam
@@ -33,11 +34,6 @@ class VirNucPro:
         self.virnucpro_path = virnucpro_path
         log.debug('VirNucPro path: %s', self.virnucpro_path)
 
-    @property
-    def prediction_script(self):
-        """Return path to prediction.py script."""
-        return os.path.join(self.virnucpro_path, 'prediction.py')
-
     def get_model_path(self, expected_length):
         """
         Get path to model file for specified sequence length.
@@ -63,7 +59,9 @@ class VirNucPro:
 
         return model_path
 
-    def classify(self, in_bam, out_report, expected_length=500, use_gpu=None):
+    def classify(self, in_bam, out_report, expected_length=500, use_gpu=None,
+                 parallel=False, gpus=None, batch_size=None, dnabert_batch_size=None,
+                 esm_batch_size=None, threads=None):
         """
         Classify reads from BAM file using VirNucPro.
 
@@ -72,6 +70,12 @@ class VirNucPro:
             out_report: Output classification report (TSV format).
             expected_length: Expected sequence length (300 or 500, default 500).
             use_gpu: GPU usage control. True=force GPU, False=force CPU, None=auto-detect.
+            parallel: Enable multi-GPU parallel processing.
+            gpus: Comma-separated GPU IDs to use (e.g., "0,1,2").
+            batch_size: Batch size for prediction DataLoader.
+            dnabert_batch_size: Token batch size for DNABERT-S processing.
+            esm_batch_size: Token batch size for ESM-2 processing.
+            threads: Number of CPU threads for translation and merge.
         """
         with pysam.AlignmentFile(in_bam, 'rb', check_sq=False) as bam:
             is_empty = sum(1 for _ in bam) == 0
@@ -91,9 +95,15 @@ class VirNucPro:
             self._bam_to_fasta(in_bam, tmp_fasta)
             self._ensure_unique_fasta_ids(tmp_fasta, tmp_fasta_unique)
 
-            self._run_prediction(tmp_fasta_unique, expected_length, model_path, use_gpu=use_gpu)
+            self._run_prediction(
+                tmp_fasta_unique, expected_length, model_path, use_gpu=use_gpu,
+                parallel=parallel, gpus=gpus, batch_size=batch_size,
+                dnabert_batch_size=dnabert_batch_size, esm_batch_size=esm_batch_size,
+                threads=threads, output_dir=tmp_dir
+            )
 
-            results_dir = tmp_fasta_unique.split('.fasta')[0] + '_merged'
+            # New VirNucPro outputs to {output_dir}/input_unique_merged/prediction_results.txt
+            results_dir = os.path.join(tmp_dir, 'input_unique_merged')
             results_file = os.path.join(results_dir, 'prediction_results.txt')
 
             if not os.path.exists(results_file):
@@ -162,22 +172,65 @@ class VirNucPro:
         if total_dups > 0:
             log.warning("Deduplicated %d duplicate FASTA IDs", total_dups)
 
-    def _run_prediction(self, fasta_file, expected_length, model_path, use_gpu=None):
+    def _run_prediction(self, fasta_file, expected_length, model_path, use_gpu=None,
+                        parallel=False, gpus=None, batch_size=None, dnabert_batch_size=None,
+                        esm_batch_size=None, threads=None, output_dir=None):
         """
-        Run VirNucPro prediction.py script.
+        Run VirNucPro prediction using the refactored CLI.
 
-        WHY subprocess: VirNucPro designed as CLI tool with sys.argv parsing, no library API.
-        Subprocess isolation prevents PyTorch memory leaks in long-running wrapper process.
+        WHY subprocess: Subprocess isolation prevents PyTorch memory leaks in long-running
+        wrapper process. The new VirNucPro uses `python -m virnucpro predict` as entry point.
 
         Args:
             fasta_file: Input FASTA file.
             expected_length: Expected sequence length.
             model_path: Path to model file.
             use_gpu: GPU usage control. True=force GPU, False=force CPU, None=auto-detect.
+            parallel: Enable multi-GPU parallel processing.
+            gpus: Comma-separated GPU IDs to use.
+            batch_size: Batch size for prediction DataLoader.
+            dnabert_batch_size: Token batch size for DNABERT-S processing.
+            esm_batch_size: Token batch size for ESM-2 processing.
+            threads: Number of CPU threads for translation and merge.
+            output_dir: Output directory for results.
         """
-        cmd = ['python', self.prediction_script, fasta_file, str(expected_length), model_path]
+        # Build command for new VirNucPro CLI
+        cmd = [
+            sys.executable, '-m', 'virnucpro', 'predict',
+            fasta_file,
+            '--model-type', str(expected_length),
+            '--model-path', model_path,
+            '--force',  # Overwrite output directory if exists
+            '--no-progress',  # Disable progress bars for subprocess
+        ]
 
-        # WHY CUDA_VISIBLE_DEVICES: Standard PyTorch pattern for CPU/GPU control without code changes.
+        # Add output directory if specified
+        if output_dir:
+            cmd.extend(['--output-dir', output_dir])
+
+        # Device/GPU options
+        if use_gpu is False:
+            cmd.extend(['--device', 'cpu'])
+        elif gpus:
+            cmd.extend(['--gpus', gpus])
+
+        # Parallel processing
+        if parallel:
+            cmd.append('--parallel')
+
+        # Batch size options
+        if batch_size:
+            cmd.extend(['--batch-size', str(batch_size)])
+        if dnabert_batch_size:
+            cmd.extend(['--dnabert-batch-size', str(dnabert_batch_size)])
+        if esm_batch_size:
+            cmd.extend(['--esm-batch-size', str(esm_batch_size)])
+
+        # Thread options
+        if threads:
+            cmd.extend(['--threads', str(threads)])
+
+        # WHY CUDA_VISIBLE_DEVICES: Standard PyTorch pattern for CPU/GPU control.
         # Setting to "-1" forces CPU mode when GPU unavailable. Cloud VMs may lack GPU.
         env = os.environ.copy()
         if use_gpu is False:

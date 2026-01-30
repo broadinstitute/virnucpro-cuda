@@ -18,22 +18,23 @@ RUN apt-get update && apt-get install -y \
 # WHY ARG for commit pinning: Allows building specific VirNucPro versions without Dockerfile changes.
 # Single Dockerfile can build multiple versions by passing --build-arg VIRNUCPRO_COMMIT=<sha>.
 # Pattern from beast2-beagle-cuda for version matrix builds.
-ARG VIRNUCPRO_REPO=https://github.com/Li-Jing-1997/VirNucPro.git
+ARG VIRNUCPRO_REPO=https://github.com/broadinstitute/virnucpro.git
 ARG VIRNUCPRO_COMMIT=HEAD
 
-# Clone VirNucPro repository
+# Clone VirNucPro repository (refactored version with multi-GPU support)
 RUN git clone ${VIRNUCPRO_REPO} /opt/VirNucPro && \
     cd /opt/VirNucPro && \
     git checkout ${VIRNUCPRO_COMMIT}
 
 # Capture VirNucPro version at build time
-RUN cd /opt/VirNucPro && git rev-parse HEAD > /tmp/virnucpro_version.txt
+RUN cd /opt/VirNucPro && \
+    echo "$(python3 -c 'import sys; sys.path.insert(0, "/opt/VirNucPro"); from virnucpro import __version__; print(__version__)')-$(git rev-parse --short HEAD)" > /tmp/virnucpro_version.txt
 
 # Copy wrapper requirements and install
 COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
-# Install VirNucPro dependencies
+# Install VirNucPro dependencies (refactored version includes all dependencies)
 RUN pip3 install --no-cache-dir -r /opt/VirNucPro/requirements.txt
 
 # WHY uninstall triton: Prevents GPU compatibility issues across different CUDA device generations.
@@ -74,7 +75,10 @@ COPY virnucpro.py virnucpro_cli.py /opt/
 RUN chmod +x /opt/virnucpro.py /opt/virnucpro_cli.py
 
 # Set environment variables
+# VIRNUCPRO_PATH points to installation directory (contains models)
+# PYTHONPATH includes VirNucPro to enable 'python -m virnucpro' invocation
 ENV VIRNUCPRO_PATH="/opt/VirNucPro"
+ENV PYTHONPATH="/opt/VirNucPro:${PYTHONPATH}"
 ENV PATH="/usr/local/bin:${PATH}"
 
 # Set working directory

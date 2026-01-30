@@ -48,7 +48,13 @@ def test_cli_basic_invocation():
             'input.bam',
             'output.tsv',
             expected_length=500,
-            use_gpu=None
+            use_gpu=None,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None
         )
 
 
@@ -65,7 +71,13 @@ def test_cli_expected_length():
             'input.bam',
             'output.tsv',
             expected_length=300,
-            use_gpu=None
+            use_gpu=None,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None
         )
 
 
@@ -101,7 +113,13 @@ def test_cli_use_gpu_flag():
             'input.bam',
             'output.tsv',
             expected_length=500,
-            use_gpu=True
+            use_gpu=True,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None
         )
 
 
@@ -118,7 +136,13 @@ def test_cli_no_gpu_flag():
             'input.bam',
             'output.tsv',
             expected_length=500,
-            use_gpu=False
+            use_gpu=False,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None
         )
 
 
@@ -146,3 +170,128 @@ def test_cli_classify_exception():
                 virnucpro_cli.main()
 
         assert exc_info.value.code == 1
+
+
+def test_cli_parallel_flag():
+    """Verify --parallel flag is passed correctly."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', ['virnucpro_cli.py', 'input.bam', 'output.tsv', '--parallel']):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            'output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=True,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None
+        )
+
+
+def test_cli_gpus_option():
+    """Verify --gpus option is passed correctly."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', ['virnucpro_cli.py', 'input.bam', 'output.tsv', '--gpus', '0,1,2']):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            'output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=False,
+            gpus='0,1,2',
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None
+        )
+
+
+def test_cli_batch_size_options():
+    """Verify batch size options are passed correctly."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', [
+            'virnucpro_cli.py', 'input.bam', 'output.tsv',
+            '--batch-size', '128',
+            '--dnabert-batch-size', '1024',
+            '--esm-batch-size', '512'
+        ]):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            'output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=False,
+            gpus=None,
+            batch_size=128,
+            dnabert_batch_size=1024,
+            esm_batch_size=512,
+            threads=None
+        )
+
+
+def test_cli_threads_option():
+    """Verify --threads option is passed correctly."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', ['virnucpro_cli.py', 'input.bam', 'output.tsv', '--threads', '8']):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            'output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=8
+        )
+
+
+def test_cli_multi_gpu_parallel():
+    """Verify multi-GPU parallel options are passed correctly together."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', [
+            'virnucpro_cli.py', 'input.bam', 'output.tsv',
+            '--gpus', '0,1,2,3',
+            '--parallel',
+            '--threads', '16'
+        ]):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            'output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=True,
+            gpus='0,1,2,3',
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=16
+        )

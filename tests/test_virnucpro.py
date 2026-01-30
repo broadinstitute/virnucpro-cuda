@@ -12,9 +12,7 @@ def virnucpro_path(tmpdir):
     """Create mock VirNucPro installation directory with required files."""
     virnucpro_dir = tmpdir.mkdir('virnucpro')
 
-    prediction_script = virnucpro_dir.join('prediction.py')
-    prediction_script.write('#!/usr/bin/env python\n# Mock VirNucPro prediction script\n')
-
+    # Create mock model files (required for get_model_path validation)
     model_300 = virnucpro_dir.join('300_model.pth')
     model_300.write('mock model data for 300bp')
 
@@ -83,8 +81,6 @@ def test_get_model_path_invalid(virnucpro_tool):
 def test_get_model_path_missing(tmpdir):
     """Test get_model_path() raises FileNotFoundError when model file missing."""
     empty_dir = tmpdir.mkdir('empty_virnucpro')
-    prediction_script = empty_dir.join('prediction.py')
-    prediction_script.write('#!/usr/bin/env python\n')
 
     tool = virnucpro.VirNucPro(virnucpro_path=str(empty_dir))
 
