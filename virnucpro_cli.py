@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import sys
+import traceback
 
 import virnucpro
 
@@ -192,6 +193,8 @@ def main():
         logging.info("Classification complete: %s", args.output_tsv)
     except Exception as e:
         logging.error("Classification failed: %s", e)
+        # Print full traceback to stderr for Cromwell visibility
+        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 
 

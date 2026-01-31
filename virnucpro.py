@@ -218,9 +218,12 @@ class VirNucPro:
         process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         stdout, stderr = process.communicate()
 
+        # Always print stdout/stderr directly to ensure visibility in Cromwell logs
         if stdout:
+            print(stdout, file=sys.stdout)
             log.debug("VirNucPro stdout: %s", stdout)
         if stderr:
+            print(stderr, file=sys.stderr)
             log.debug("VirNucPro stderr: %s", stderr)
 
         # WHY check Traceback in stderr: Python exceptions don't always set non-zero exit codes.
