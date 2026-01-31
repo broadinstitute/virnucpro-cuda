@@ -84,5 +84,5 @@ ENV PATH="/usr/local/bin:${PATH}"
 # Set working directory
 WORKDIR /data
 
-# Entry point and default command
-ENTRYPOINT ["/bin/bash"]
+# Default command (no entrypoint for Nextflow compatibility)
+CMD ["/bin/bash"]
