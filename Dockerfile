@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
 # WHY ARG for commit pinning: Allows building specific VirNucPro versions without Dockerfile changes.
 # Single Dockerfile can build multiple versions by passing --build-arg VIRNUCPRO_COMMIT=<sha>.
 # Pattern from beast2-beagle-cuda for version matrix builds.
-ARG VIRNUCPRO_REPO=https://github.com/broadinstitute/virnucpro.git
+ARG VIRNUCPRO_REPO=https://github.com/broadinstitute/virnucpro-broad.git
 ARG VIRNUCPRO_COMMIT=HEAD
 
 # Clone VirNucPro repository (refactored version with multi-GPU support)
