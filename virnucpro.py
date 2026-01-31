@@ -20,6 +20,8 @@ class VirNucPro:
     """
 
     SUPPORTED_LENGTHS = [300, 500]
+    FASTA_EXTENSIONS = {'.fasta', '.fa', '.fna', '.ffn', '.faa', '.frn'}
+    BAM_EXTENSIONS = {'.bam'}
 
     def __init__(self, virnucpro_path=None):
         """
@@ -119,6 +121,111 @@ class VirNucPro:
             log.info("Results saved to %s", out_report)
 
             # Copy consensus results (derive filename from out_report)
+            if os.path.exists(consensus_file):
+                out_base, out_ext = os.path.splitext(out_report)
+                consensus_out = f"{out_base}_highestscore.csv"
+                shutil.copy(consensus_file, consensus_out)
+                log.info("Consensus results saved to %s", consensus_out)
+
+    def detect_input_type(self, input_file):
+        """
+        Detect input file type based on extension.
+
+        Args:
+            input_file: Path to input file.
+
+        Returns:
+            'bam' or 'fasta'
+
+        Raises:
+            ValueError: If file extension is not recognized.
+        """
+        ext = os.path.splitext(input_file)[1].lower()
+        if ext in self.BAM_EXTENSIONS:
+            return 'bam'
+        elif ext in self.FASTA_EXTENSIONS:
+            return 'fasta'
+        else:
+            raise ValueError(
+                f"Unrecognized file extension '{ext}'. "
+                f"Supported: BAM ({', '.join(self.BAM_EXTENSIONS)}), "
+                f"FASTA ({', '.join(sorted(self.FASTA_EXTENSIONS))})"
+            )
+
+    def _is_empty_fasta(self, fasta_path):
+        """
+        Check if FASTA file is empty (no sequences).
+
+        Args:
+            fasta_path: Path to FASTA file.
+
+        Returns:
+            True if file has no sequences, False otherwise.
+        """
+        with open(fasta_path, 'r') as f:
+            for line in f:
+                if line.startswith('>'):
+                    return False
+        return True
+
+    def classify_fasta(self, in_fasta, out_report, expected_length=500, use_gpu=None,
+                       parallel=False, gpus=None, batch_size=None, dnabert_batch_size=None,
+                       esm_batch_size=None, threads=None, persistent_models=False):
+        """
+        Classify sequences directly from FASTA file using VirNucPro.
+
+        Args:
+            in_fasta: Input FASTA file with sequences.
+            out_report: Output classification report (TSV format).
+            expected_length: Expected sequence length (300 or 500, default 500).
+            use_gpu: GPU usage control. True=force GPU, False=force CPU, None=auto-detect.
+            parallel: Enable multi-GPU parallel processing.
+            gpus: Comma-separated GPU IDs to use (e.g., "0,1,2").
+            batch_size: Batch size for prediction DataLoader.
+            dnabert_batch_size: Token batch size for DNABERT-S processing.
+            esm_batch_size: Token batch size for ESM-2 processing.
+            threads: Number of CPU threads for translation and merge.
+            persistent_models: Keep models loaded in GPU memory between stages.
+
+        Note:
+            FASTA sequence IDs must be unique. For paired-end data, add /1 and /2
+            suffixes to distinguish read pairs (e.g., >read001/1, >read001/2).
+        """
+        if self._is_empty_fasta(in_fasta):
+            log.warning("Input FASTA is empty, creating empty output reports")
+            with open(out_report, 'wt') as outf:
+                outf.write("Sequence_ID\tPrediction\tscore1\tscore2\n")
+            out_base, out_ext = os.path.splitext(out_report)
+            consensus_out = f"{out_base}_highestscore.csv"
+            with open(consensus_out, 'wt') as outf:
+                outf.write("Sequence_ID,Prediction,score1,score2\n")
+            return
+
+        model_path = self.get_model_path(expected_length)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # Copy FASTA to temp directory with consistent name for output path derivation
+            tmp_fasta = os.path.join(tmp_dir, 'input.fasta')
+            shutil.copy(in_fasta, tmp_fasta)
+
+            self._run_prediction(
+                tmp_fasta, expected_length, model_path, use_gpu=use_gpu,
+                parallel=parallel, gpus=gpus, batch_size=batch_size,
+                dnabert_batch_size=dnabert_batch_size, esm_batch_size=esm_batch_size,
+                threads=threads, output_dir=tmp_dir, persistent_models=persistent_models
+            )
+
+            # VirNucPro outputs to {output_dir}/input_merged/
+            results_dir = os.path.join(tmp_dir, 'input_merged')
+            results_file = os.path.join(results_dir, 'prediction_results.txt')
+            consensus_file = os.path.join(results_dir, 'prediction_results_highestscore.csv')
+
+            if not os.path.exists(results_file):
+                raise RuntimeError(f"VirNucPro did not produce expected output file: {results_file}")
+
+            shutil.copy(results_file, out_report)
+            log.info("Results saved to %s", out_report)
+
             if os.path.exists(consensus_file):
                 out_base, out_ext = os.path.splitext(out_report)
                 consensus_out = f"{out_base}_highestscore.csv"

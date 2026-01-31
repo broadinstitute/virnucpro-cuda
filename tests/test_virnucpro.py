@@ -247,3 +247,105 @@ def test_classify_subprocess_traceback(mocker, virnucpro_tool, test_bam, tmpdir)
 
     assert 'VirNucPro failed' in str(exc_info.value)
     assert 'Traceback' in str(exc_info.value)
+
+
+# FASTA input tests
+
+def test_detect_input_type_bam(virnucpro_tool):
+    """Test detect_input_type() returns 'bam' for .bam extension."""
+    assert virnucpro_tool.detect_input_type('test.bam') == 'bam'
+    assert virnucpro_tool.detect_input_type('/path/to/sample.bam') == 'bam'
+
+
+def test_detect_input_type_fasta(virnucpro_tool):
+    """Test detect_input_type() returns 'fasta' for FASTA extensions."""
+    assert virnucpro_tool.detect_input_type('test.fasta') == 'fasta'
+    assert virnucpro_tool.detect_input_type('test.fa') == 'fasta'
+    assert virnucpro_tool.detect_input_type('test.fna') == 'fasta'
+    assert virnucpro_tool.detect_input_type('test.ffn') == 'fasta'
+    assert virnucpro_tool.detect_input_type('test.faa') == 'fasta'
+    assert virnucpro_tool.detect_input_type('test.frn') == 'fasta'
+    assert virnucpro_tool.detect_input_type('/path/to/sequences.FASTA') == 'fasta'
+
+
+def test_detect_input_type_unknown(virnucpro_tool):
+    """Test detect_input_type() raises ValueError for unknown extensions."""
+    with pytest.raises(ValueError) as exc_info:
+        virnucpro_tool.detect_input_type('test.txt')
+    assert 'Unrecognized file extension' in str(exc_info.value)
+
+    with pytest.raises(ValueError):
+        virnucpro_tool.detect_input_type('test.fastq')
+
+
+@pytest.fixture
+def empty_fasta(tmpdir):
+    """Create an empty FASTA file (no sequences)."""
+    fasta_path = str(tmpdir.join('empty.fasta'))
+    with open(fasta_path, 'w') as f:
+        pass  # Write nothing
+    return fasta_path
+
+
+@pytest.fixture
+def test_fasta(tmpdir):
+    """Create a test FASTA file with some sequences."""
+    fasta_path = str(tmpdir.join('test.fasta'))
+    with open(fasta_path, 'w') as f:
+        f.write(">seq1\nATCGATCGATCG\n")
+        f.write(">seq2\nGCTAGCTAGCTA\n")
+        f.write(">seq3\nAAAACCCCGGGG\n")
+    return fasta_path
+
+
+def test_is_empty_fasta_empty(virnucpro_tool, empty_fasta):
+    """Test _is_empty_fasta() returns True for empty FASTA."""
+    assert virnucpro_tool._is_empty_fasta(empty_fasta) is True
+
+
+def test_is_empty_fasta_with_sequences(virnucpro_tool, test_fasta):
+    """Test _is_empty_fasta() returns False for FASTA with sequences."""
+    assert virnucpro_tool._is_empty_fasta(test_fasta) is False
+
+
+def test_classify_fasta_empty(virnucpro_tool, empty_fasta, tmpdir):
+    """Test classify_fasta() creates header-only output when FASTA is empty."""
+    out_report = str(tmpdir.join('output.tsv'))
+    virnucpro_tool.classify_fasta(empty_fasta, out_report, expected_length=500)
+
+    # Check main results file
+    assert os.path.exists(out_report)
+    with open(out_report, 'r') as f:
+        content = f.read()
+        assert content == "Sequence_ID\tPrediction\tscore1\tscore2\n"
+
+    # Check consensus results file
+    consensus_out = str(tmpdir.join('output_highestscore.csv'))
+    assert os.path.exists(consensus_out)
+    with open(consensus_out, 'r') as f:
+        content = f.read()
+        assert content == "Sequence_ID,Prediction,score1,score2\n"
+
+
+def test_classify_fasta_calls_prediction(mocker, virnucpro_tool, test_fasta, tmpdir):
+    """Test classify_fasta() calls _run_prediction with copied FASTA."""
+    mock_popen = mocker.patch('virnucpro.subprocess.Popen', autospec=True)
+    mock_process = mock_popen.return_value
+    mock_process.communicate.return_value = ('', '')
+    mock_process.returncode = 0
+
+    mock_exists = mocker.patch('virnucpro.os.path.exists', return_value=True)
+    mock_copy = mocker.patch('virnucpro.shutil.copy')
+
+    out_report = str(tmpdir.join('output.txt'))
+    virnucpro_tool.classify_fasta(test_fasta, out_report, expected_length=500)
+
+    mock_popen.assert_called_once()
+    call_args = mock_popen.call_args
+    cmd = call_args[0][0]
+
+    # Should call virnucpro predict with the temp FASTA
+    assert 'virnucpro' in cmd
+    assert 'predict' in cmd
+    assert '--model-type' in cmd
+    assert '500' in cmd

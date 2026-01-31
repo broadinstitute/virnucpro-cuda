@@ -48,8 +48,11 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
-  # Basic prediction with 500bp model
+  # Basic prediction with 500bp model (BAM input)
   virnucpro_cli.py input.bam output.tsv
+
+  # FASTA input (automatically detected by extension)
+  virnucpro_cli.py sequences.fasta output.tsv
 
   # Use 300bp model with CPU only
   virnucpro_cli.py input.bam output.tsv --expected-length 300 --no-gpu
@@ -63,8 +66,8 @@ Examples:
     )
 
     parser.add_argument(
-        'input_bam',
-        help='Input BAM file (unaligned reads)'
+        'input_file',
+        help='Input file: BAM (.bam) or FASTA (.fasta, .fa, .fna, .ffn, .faa, .frn)'
     )
 
     parser.add_argument(
@@ -177,9 +180,10 @@ def main():
 
     try:
         tool = virnucpro.VirNucPro(virnucpro_path=args.virnucpro_path)
-        tool.classify(
-            args.input_bam,
-            args.output_tsv,
+        input_type = tool.detect_input_type(args.input_file)
+
+        classify_args = dict(
+            out_report=args.output_tsv,
             expected_length=args.expected_length,
             use_gpu=gpu_mode,
             parallel=args.parallel,
@@ -190,6 +194,12 @@ def main():
             threads=args.threads,
             persistent_models=args.persistent_models
         )
+
+        if input_type == 'fasta':
+            tool.classify_fasta(args.input_file, **classify_args)
+        else:
+            tool.classify(args.input_file, **classify_args)
+
         logging.info("Classification complete: %s", args.output_tsv)
     except Exception as e:
         logging.error("Classification failed: %s", e)
