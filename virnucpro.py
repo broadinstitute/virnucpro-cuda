@@ -91,20 +91,18 @@ class VirNucPro:
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_fasta = os.path.join(tmp_dir, 'input.fasta')
-            tmp_fasta_unique = os.path.join(tmp_dir, 'input_unique.fasta')
 
             self._bam_to_fasta(in_bam, tmp_fasta)
-            self._ensure_unique_fasta_ids(tmp_fasta, tmp_fasta_unique)
 
             self._run_prediction(
-                tmp_fasta_unique, expected_length, model_path, use_gpu=use_gpu,
+                tmp_fasta, expected_length, model_path, use_gpu=use_gpu,
                 parallel=parallel, gpus=gpus, batch_size=batch_size,
                 dnabert_batch_size=dnabert_batch_size, esm_batch_size=esm_batch_size,
                 threads=threads, output_dir=tmp_dir, persistent_models=persistent_models
             )
 
-            # New VirNucPro outputs to {output_dir}/input_unique_merged/prediction_results.txt
-            results_dir = os.path.join(tmp_dir, 'input_unique_merged')
+            # New VirNucPro outputs to {output_dir}/input_merged/prediction_results.txt
+            results_dir = os.path.join(tmp_dir, 'input_merged')
             results_file = os.path.join(results_dir, 'prediction_results.txt')
 
             if not os.path.exists(results_file):
@@ -117,61 +115,19 @@ class VirNucPro:
         """
         Convert BAM to FASTA format.
 
+        Paired-end reads get /1 or /2 suffix to ensure unique IDs.
+        This matches standard conventions (e.g., samtools fasta output).
+
         Args:
             in_bam: Input BAM file path.
             out_fasta: Output FASTA file path.
         """
         with pysam.AlignmentFile(in_bam, 'rb', check_sq=False) as bam, open(out_fasta, 'w') as fasta:
             for read in bam:
-                fasta.write(f">{read.query_name}\n")
-                fasta.write(f"{read.query_sequence}\n")
-
-    def _ensure_unique_fasta_ids(self, input_fasta, output_fasta):
-        """
-        Ensure all FASTA sequence IDs are unique by adding numeric suffixes.
-
-        WHY deduplication: ESM model (from fair-esm library) crashes with "KeyError" when
-        duplicate sequence IDs are present. BAM files inherently have duplicate read names
-        for paired-end reads (read1/1 and read1/2 both named "read1"). Silent deduplication
-        with _N suffix prevents crashes while preserving traceability via prefix matching.
-
-        Args:
-            input_fasta: Input FASTA file path (may have duplicate IDs).
-            output_fasta: Output FASTA file path (will have unique IDs).
-        """
-        seen_ids = {}  # Track count of each original ID
-        all_ids = set()  # Track ALL IDs (original + generated) to prevent collisions
-        total_dups = 0
-
-        with open(input_fasta, 'r') as infile, open(output_fasta, 'w') as outfile:
-            for line in infile:
-                if line.startswith('>'):
-                    seq_id = line[1:].split()[0]
-
-                    if seq_id in seen_ids:
-                        # Duplicate found - generate unique suffix
-                        seen_ids[seq_id] += 1
-                        total_dups += 1
-
-                        # Keep incrementing suffix until we find an unused ID
-                        suffix_num = seen_ids[seq_id]
-                        unique_id = f"{seq_id}_{suffix_num}"
-                        while unique_id in all_ids:
-                            suffix_num += 1
-                            unique_id = f"{seq_id}_{suffix_num}"
-                        seen_ids[seq_id] = suffix_num
-                    else:
-                        seen_ids[seq_id] = 0
-                        unique_id = seq_id
-
-                    all_ids.add(unique_id)
-                    rest_of_header = line[1+len(seq_id):]
-                    outfile.write(f">{unique_id}{rest_of_header}")
-                else:
-                    outfile.write(line)
-
-        if total_dups > 0:
-            log.warning("Deduplicated %d duplicate FASTA IDs", total_dups)
+                name = read.query_name
+                if read.is_paired:
+                    name += "/1" if read.is_read1 else "/2"
+                fasta.write(f">{name}\n{read.query_sequence}\n")
 
     def _run_prediction(self, fasta_file, expected_length, model_path, use_gpu=None,
                         parallel=False, gpus=None, batch_size=None, dnabert_batch_size=None,

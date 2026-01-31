@@ -100,83 +100,72 @@ def test_classify_empty_bam(virnucpro_tool, empty_bam, tmpdir):
         assert content == "Sequence_ID\tPrediction\tscore1\tscore2\n"
 
 
-def test_ensure_unique_fasta_ids(virnucpro_tool, tmpdir):
-    """Test _ensure_unique_fasta_ids() makes duplicate IDs unique."""
-    input_fasta = tmpdir.join('input.fasta')
-    input_fasta.write(
-        '>read1\n'
-        'ATCG\n'
-        '>read2\n'
-        'GCTA\n'
-        '>read1\n'
-        'TTTT\n'
-        '>read1\n'
-        'AAAA\n'
-        '>read3 extra info here\n'
-        'GGGG\n'
-    )
+@pytest.fixture
+def paired_end_bam(tmpdir):
+    """Create a test BAM file with paired-end reads."""
+    bam_path = str(tmpdir.join('paired.bam'))
+    header = {'HD': {'VN': '1.0'}}
+    with pysam.AlignmentFile(bam_path, 'wb', header=header) as bam:
+        # First read of pair
+        read1 = pysam.AlignedSegment()
+        read1.query_name = 'readA'
+        read1.query_sequence = 'ATCG' * 10
+        read1.flag = 65  # paired, first in pair
+        read1.reference_id = -1
+        read1.reference_start = -1
+        read1.mapping_quality = 0
+        read1.cigar = None
+        read1.next_reference_id = -1
+        read1.next_reference_start = -1
+        read1.template_length = 0
+        read1.query_qualities = pysam.qualitystring_to_array('I' * 40)
+        bam.write(read1)
 
-    output_fasta = str(tmpdir.join('output.fasta'))
-    virnucpro_tool._ensure_unique_fasta_ids(str(input_fasta), output_fasta)
+        # Second read of pair
+        read2 = pysam.AlignedSegment()
+        read2.query_name = 'readA'
+        read2.query_sequence = 'GCTA' * 10
+        read2.flag = 129  # paired, second in pair
+        read2.reference_id = -1
+        read2.reference_start = -1
+        read2.mapping_quality = 0
+        read2.cigar = None
+        read2.next_reference_id = -1
+        read2.next_reference_start = -1
+        read2.template_length = 0
+        read2.query_qualities = pysam.qualitystring_to_array('I' * 40)
+        bam.write(read2)
 
-    with open(output_fasta, 'r') as f:
+    return bam_path
+
+
+def test_bam_to_fasta_paired_end_suffix(virnucpro_tool, paired_end_bam, tmpdir):
+    """Test _bam_to_fasta() adds /1 and /2 suffixes for paired-end reads."""
+    out_fasta = str(tmpdir.join('output.fasta'))
+    virnucpro_tool._bam_to_fasta(paired_end_bam, out_fasta)
+
+    with open(out_fasta, 'r') as f:
         content = f.read()
 
-    expected = (
-        '>read1\n'
-        'ATCG\n'
-        '>read2\n'
-        'GCTA\n'
-        '>read1_1\n'
-        'TTTT\n'
-        '>read1_2\n'
-        'AAAA\n'
-        '>read3 extra info here\n'
-        'GGGG\n'
-    )
-
-    assert content == expected
+    # Should have /1 and /2 suffixes
+    assert '>readA/1\n' in content
+    assert '>readA/2\n' in content
 
 
-def test_ensure_unique_fasta_ids_collision_prevention(virnucpro_tool, tmpdir):
-    """Test collision prevention when suffixed IDs already exist in input.
+def test_bam_to_fasta_unpaired(virnucpro_tool, test_bam, tmpdir):
+    """Test _bam_to_fasta() does not add suffix for unpaired reads."""
+    out_fasta = str(tmpdir.join('output.fasta'))
+    virnucpro_tool._bam_to_fasta(test_bam, out_fasta)
 
-    Regression test for QR finding: input like read1, read1_1, read1 should not
-    create duplicate read1_1 entries. The second read1 should become read1_2.
-    """
-    input_fasta = tmpdir.join('input.fasta')
-    input_fasta.write(
-        '>read1\n'
-        'ATCG\n'
-        '>read1_1\n'
-        'GCTA\n'
-        '>read1\n'
-        'TTTT\n'
-        '>read2\n'
-        'AAAA\n'
-        '>read2_1\n'
-        'GGGG\n'
-        '>read2_2\n'
-        'CCCC\n'
-        '>read2\n'
-        'NNNN\n'
-    )
+    with open(out_fasta, 'r') as f:
+        content = f.read()
 
-    output_fasta = str(tmpdir.join('output.fasta'))
-    virnucpro_tool._ensure_unique_fasta_ids(str(input_fasta), output_fasta)
-
-    with open(output_fasta, 'r') as f:
-        lines = [line.strip() for line in f if line.strip()]
-
-    # Extract just the IDs
-    ids = [line[1:] for line in lines if line.startswith('>')]
-
-    # Verify all IDs are unique (no collisions)
-    assert len(ids) == len(set(ids)), f"Duplicate IDs found: {ids}"
-
-    # Verify expected outputs for collision scenarios
-    expected_ids = ['read1', 'read1_1', 'read1_2', 'read2', 'read2_1', 'read2_2', 'read2_3']
-    assert ids == expected_ids, f"Expected {expected_ids}, got {ids}"
+    # Unpaired reads should not have /1 or /2
+    assert '>read0\n' in content
+    assert '>read1\n' in content
+    assert '>read2\n' in content
+    assert '/1' not in content
+    assert '/2' not in content
 
 
 def test_classify_cpu_mode(mocker, virnucpro_tool, test_bam, tmpdir):

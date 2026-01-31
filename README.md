@@ -214,13 +214,13 @@ VirNucPro uses `python -m virnucpro predict` for command-line invocation. Subpro
 - Negligible overhead (~50-100ms process spawn) for minute-scale PyTorch inference
 - Clean separation between BAM handling (wrapper) and ML inference (VirNucPro)
 
-### Unique FASTA ID Enforcement
+### Paired-End Read Handling
 
-ESM model (from fair-esm library) crashes on duplicate sequence IDs. BAM files inherently have duplicate read names for paired-end reads. The `_ensure_unique_fasta_ids()` function:
-- Appends `_N` suffix to duplicates (read1, read1_1, read1_2...)
-- Prevents ESM model crashes
-- Enables traceability via prefix matching
-- Logs warning with deduplication count
+BAM files store paired-end reads with the same query name. The `_bam_to_fasta()` function adds standard `/1` and `/2` suffixes based on BAM flags:
+- First in pair: `read1` → `read1/1`
+- Second in pair: `read1` → `read1/2`
+- Unpaired reads: no suffix added
+- Matches standard conventions (e.g., samtools fasta output)
 
 ### Multi-Stage Docker Build
 
@@ -239,7 +239,7 @@ ESM model (from fair-esm library) crashes on duplicate sequence IDs. BAM files i
 
 ### FASTA ID Uniqueness
 
-After `_ensure_unique_fasta_ids()`, all FASTA sequence IDs must be unique within file. ESM model will crash if duplicate IDs present. Deduplication must preserve original ID as prefix for traceability.
+All FASTA sequence IDs must be unique within file. ESM model will crash if duplicate IDs present. Paired-end reads are made unique by adding `/1` and `/2` suffixes based on BAM flags.
 
 ### Sequence Length Matching
 
@@ -271,11 +271,11 @@ Must check both process return code AND stderr for "Traceback". Python exception
 - **Benefit**: Image size reduced ~30% (5GB → 3.5GB), faster cloud VM startup
 - **Decision**: Cloud deployment benefits outweigh build complexity
 
-### Unique FASTA ID Deduplication (Silent vs Error)
+### Paired-End Suffix Convention (/1 /2 vs _N deduplication)
 
-- **Cost**: Changes sequence IDs from input, users must track _N suffixes
-- **Benefit**: Prevents ESM model crashes, user can't control paired-end BAM format
-- **Decision**: Robustness over strict ID preservation, logging provides traceability
+- **Cost**: Adds /1 and /2 to paired-end read names
+- **Benefit**: Matches standard conventions (samtools fasta), clearer than _N suffixes
+- **Decision**: Standard conventions over custom deduplication scheme
 
 ### Python Wrapper vs Bash (Maintainability vs Simplicity)
 
