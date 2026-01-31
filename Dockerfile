@@ -85,5 +85,4 @@ ENV PATH="/usr/local/bin:${PATH}"
 WORKDIR /data
 
 # Entry point and default command
-ENTRYPOINT ["python3"]
-CMD ["/opt/virnucpro_cli.py", "--help"]
+ENTRYPOINT ["/bin/bash"]
