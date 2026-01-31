@@ -82,9 +82,14 @@ class VirNucPro:
             is_empty = sum(1 for _ in bam) == 0
 
         if is_empty:
-            log.warning("Input BAM is empty, creating empty output report")
+            log.warning("Input BAM is empty, creating empty output reports")
             with open(out_report, 'wt') as outf:
                 outf.write("Sequence_ID\tPrediction\tscore1\tscore2\n")
+            # Also create empty consensus file
+            out_base, out_ext = os.path.splitext(out_report)
+            consensus_out = f"{out_base}_highestscore.csv"
+            with open(consensus_out, 'wt') as outf:
+                outf.write("Sequence_ID,Prediction,score1,score2\n")
             return
 
         model_path = self.get_model_path(expected_length)
@@ -101,15 +106,24 @@ class VirNucPro:
                 threads=threads, output_dir=tmp_dir, persistent_models=persistent_models
             )
 
-            # New VirNucPro outputs to {output_dir}/input_merged/prediction_results.txt
+            # New VirNucPro outputs to {output_dir}/input_merged/
             results_dir = os.path.join(tmp_dir, 'input_merged')
             results_file = os.path.join(results_dir, 'prediction_results.txt')
+            consensus_file = os.path.join(results_dir, 'prediction_results_highestscore.csv')
 
             if not os.path.exists(results_file):
                 raise RuntimeError(f"VirNucPro did not produce expected output file: {results_file}")
 
+            # Copy main results
             shutil.copy(results_file, out_report)
             log.info("Results saved to %s", out_report)
+
+            # Copy consensus results (derive filename from out_report)
+            if os.path.exists(consensus_file):
+                out_base, out_ext = os.path.splitext(out_report)
+                consensus_out = f"{out_base}_highestscore.csv"
+                shutil.copy(consensus_file, consensus_out)
+                log.info("Consensus results saved to %s", consensus_out)
 
     def _bam_to_fasta(self, in_bam, out_fasta):
         """

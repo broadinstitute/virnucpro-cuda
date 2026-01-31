@@ -91,13 +91,21 @@ def test_get_model_path_missing(tmpdir):
 
 def test_classify_empty_bam(virnucpro_tool, empty_bam, tmpdir):
     """Test classify() creates header-only output when BAM is empty."""
-    out_report = str(tmpdir.join('output.txt'))
+    out_report = str(tmpdir.join('output.tsv'))
     virnucpro_tool.classify(empty_bam, out_report, expected_length=500)
 
+    # Check main results file
     assert os.path.exists(out_report)
     with open(out_report, 'r') as f:
         content = f.read()
         assert content == "Sequence_ID\tPrediction\tscore1\tscore2\n"
+
+    # Check consensus results file
+    consensus_out = str(tmpdir.join('output_highestscore.csv'))
+    assert os.path.exists(consensus_out)
+    with open(consensus_out, 'r') as f:
+        content = f.read()
+        assert content == "Sequence_ID,Prediction,score1,score2\n"
 
 
 @pytest.fixture
