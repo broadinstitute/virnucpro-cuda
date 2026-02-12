@@ -146,6 +146,26 @@ Examples:
         help='Keep models loaded in GPU memory between pipeline stages (reduces loading overhead but uses more memory)'
     )
 
+    # v2.0 options
+    v2_group = parser.add_argument_group('v2.0 Architecture Options')
+    v2_group.add_argument(
+        '--resume',
+        action='store_true',
+        help='Resume from checkpoint if available'
+    )
+
+    v2_group.add_argument(
+        '--v1-fallback',
+        action='store_true',
+        help='Use v1.0 multi-worker architecture for ESM-2 instead of v2.0 async DataLoader'
+    )
+
+    v2_group.add_argument(
+        '--v1-attention',
+        action='store_true',
+        help='Use v1.0-compatible standard attention for ESM-2 (exact match, 2-3x slower)'
+    )
+
     # Other options
     parser.add_argument(
         '--virnucpro-path',
@@ -192,7 +212,10 @@ def main():
             dnabert_batch_size=args.dnabert_batch_size,
             esm_batch_size=args.esm_batch_size,
             threads=args.threads,
-            persistent_models=args.persistent_models
+            persistent_models=args.persistent_models,
+            resume=args.resume,
+            v1_fallback=args.v1_fallback,
+            v1_attention=args.v1_attention
         )
 
         if input_type == 'fasta':

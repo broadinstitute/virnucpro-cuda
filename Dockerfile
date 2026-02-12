@@ -2,9 +2,9 @@
 # WHY multi-stage: Separating build and runtime reduces image size ~30% (5GB → 3.5GB)
 # by excluding build dependencies (gcc, build-essential) from final image. Faster cloud VM startup.
 # Builder stage: compile and install dependencies
-# WHY CUDA 11.8: PyTorch 2.0+ has proven stability with CUDA 11.8, compatible with V100/T4/A100 GPUs.
-# CUDA 12.x has compatibility issues with transformers==4.30.0 and fair-esm==2.0.0.
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04 AS builder
+# WHY CUDA 12.6: VirNucPro v2.0 requires PyTorch >= 2.8.0, which dropped CUDA 11.8 support.
+# CUDA 12.6 is the minimum supported version for PyTorch 2.8.0. Compatible with V100/T4/A100/H100 GPUs.
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04 AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -26,16 +26,17 @@ RUN git clone ${VIRNUCPRO_REPO} /opt/VirNucPro && \
     cd /opt/VirNucPro && \
     git checkout ${VIRNUCPRO_COMMIT}
 
-# Capture VirNucPro version at build time
-RUN cd /opt/VirNucPro && \
-    echo "$(python3 -c 'import sys; sys.path.insert(0, "/opt/VirNucPro"); from virnucpro import __version__; print(__version__)')-$(git rev-parse --short HEAD)" > /tmp/virnucpro_version.txt
-
 # Copy wrapper requirements and install
 COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
 # Install VirNucPro dependencies (refactored version includes all dependencies)
 RUN pip3 install --no-cache-dir -r /opt/VirNucPro/requirements.txt
+
+# Capture VirNucPro version at build time
+# WHY after pip install: virnucpro.__init__ imports yaml (pyyaml) which must be installed first.
+RUN cd /opt/VirNucPro && \
+    echo "$(python3 -c 'import sys; sys.path.insert(0, "/opt/VirNucPro"); from virnucpro import __version__; print(__version__)')-$(git rev-parse --short HEAD)" > /tmp/virnucpro_version.txt
 
 # WHY uninstall triton: Prevents GPU compatibility issues across different CUDA device generations.
 # Triton adds no value for VirNucPro's inference-only use case. Per VirNucPro README recommendation.
@@ -49,7 +50,7 @@ RUN find /usr/local/lib/python3.10/dist-packages -type d -name "__pycache__" -ex
     find /usr/local/lib/python3.10/dist-packages -type f -name "*.pyo" -delete 2>/dev/null || true
 
 # Runtime stage: minimal production image with only necessary artifacts
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -78,7 +79,7 @@ RUN chmod +x /opt/virnucpro.py /opt/virnucpro_cli.py
 # VIRNUCPRO_PATH points to installation directory (contains models)
 # PYTHONPATH includes VirNucPro to enable 'python -m virnucpro' invocation
 ENV VIRNUCPRO_PATH="/opt/VirNucPro"
-ENV PYTHONPATH="/opt/VirNucPro:${PYTHONPATH}"
+ENV PYTHONPATH="/opt/VirNucPro"
 ENV PATH="/usr/local/bin:${PATH}"
 
 # Set working directory

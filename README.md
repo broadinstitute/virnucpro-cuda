@@ -2,11 +2,14 @@
 
 VirNucPro is a viral sequence classifier using DNABERT_S and ESM2-3B language models for identifying short viral sequences (300bp or 500bp). This standalone Docker container provides GPU-accelerated classification with **multi-GPU parallel processing support**, automatic CPU fallback, and is designed for cloud pipeline deployment (GCE/dsub/Cromwell/WDL).
 
-**Features:**
-- Multi-GPU parallel processing for 150-380x speedup
-- Checkpoint-based resume for interrupted runs
-- Memory optimization for large datasets
+**Features (v2.0):**
+- **6.2x speedup** over v1.0 through async DataLoader and sequence packing
+- Multi-GPU scaling with 93.7% efficiency on ESM-2
+- FlashAttention varlen for packed attention without cross-sequence contamination
+- FP16 precision with >0.99 cosine similarity to FP32
+- Checkpoint-based resume for interrupted runs (SIGTERM handling)
 - Backward-compatible BAM input interface
+- v1.0 fallback mode for exact reproduction
 
 ## Architecture
 
@@ -147,6 +150,12 @@ docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /da
 
 # Specify CPU threads for translation and merge steps
 docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.bam /data/output.tsv --threads 16
+
+# Resume interrupted run (v2.0)
+docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.bam /data/output.tsv --parallel --resume
+
+# Use v1.0 architecture for exact match with older results
+docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /data/input.bam /data/output.tsv --parallel --v1-fallback
 ```
 
 ### CLI Options
@@ -157,12 +166,15 @@ docker run --gpus all -v $(pwd):/data virnucpro:latest /opt/virnucpro_cli.py /da
 | `--use-gpu` | Force GPU usage |
 | `--no-gpu` | Force CPU usage (disable GPU) |
 | `--gpus` | Comma-separated GPU IDs (e.g., "0,1,2") |
-| `--parallel` | Enable multi-GPU parallel processing |
+| `--parallel` | Enable multi-GPU parallel processing (v2.0 async architecture) |
 | `--batch-size` | Batch size for prediction DataLoader |
 | `--dnabert-batch-size` | Token batch size for DNABERT-S (default: 2048) |
 | `--esm-batch-size` | Token batch size for ESM-2 (default: 2048) |
 | `--threads` | CPU threads for translation and merge |
 | `--persistent-models` | Keep models in GPU memory between stages |
+| `--resume` | Resume from checkpoint if available (v2.0) |
+| `--v1-fallback` | Use v1.0 multi-worker architecture for ESM-2 (v2.0) |
+| `--v1-attention` | Use v1.0-compatible standard attention for exact match (v2.0) |
 | `--verbose` | Enable debug logging |
 | `--virnucpro-path` | Path to VirNucPro installation |
 
@@ -193,8 +205,10 @@ read2          virus         0.87      0.13
 
 ## System Requirements
 
-- **RAM**: Minimum 8GB
-- **GPU**: Optional; CUDA-compatible GPU (V100/T4/A100) for accelerated inference
+- **RAM**: Minimum 8GB (16GB+ recommended for large datasets)
+- **GPU**: Optional; CUDA 12.6+ compatible GPU (V100/T4/A100/H100) for accelerated inference
+- **CUDA**: 12.6+ (upgraded from 11.8 for PyTorch 2.8.0 support)
+- **PyTorch**: 2.8.0+ (required for v2.0 async architecture)
 - **Storage**: ~4GB for Docker image
 - **CPU Fallback**: Automatic via `CUDA_VISIBLE_DEVICES="-1"` when GPU unavailable
 
@@ -400,7 +414,7 @@ See LICENSE file for licensing information.
 
 ## References
 
-- VirNucPro (Broad refactored): https://github.com/broadinstitute/virnucpro
+- VirNucPro (Broad refactored v2.0): https://github.com/broadinstitute/virnucpro-broad
 - VirNucPro (original): https://github.com/Li-Jing-1997/VirNucPro
 - DNABERT_S: Language model for nucleotide sequences
 - ESM2-3B: Protein language model from fair-esm

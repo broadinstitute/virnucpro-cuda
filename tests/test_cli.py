@@ -57,7 +57,10 @@ def test_cli_basic_invocation():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=None,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -82,7 +85,10 @@ def test_cli_expected_length():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=None,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -126,7 +132,10 @@ def test_cli_use_gpu_flag():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=None,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -151,7 +160,10 @@ def test_cli_no_gpu_flag():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=None,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -203,7 +215,10 @@ def test_cli_parallel_flag():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=None,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -228,7 +243,10 @@ def test_cli_gpus_option():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=None,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -258,7 +276,10 @@ def test_cli_batch_size_options():
             dnabert_batch_size=1024,
             esm_batch_size=512,
             threads=None,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -283,7 +304,10 @@ def test_cli_threads_option():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=8,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -313,7 +337,10 @@ def test_cli_multi_gpu_parallel():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=16,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -338,7 +365,10 @@ def test_cli_persistent_models_flag():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=None,
-            persistent_models=True
+            persistent_models=True,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
 
 
@@ -364,6 +394,124 @@ def test_cli_fasta_input():
             dnabert_batch_size=None,
             esm_batch_size=None,
             threads=None,
-            persistent_models=False
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=False
         )
         mock_instance.classify.assert_not_called()
+
+
+def test_cli_resume_flag():
+    """Verify --resume flag is passed correctly."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_instance.detect_input_type.return_value = 'bam'
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', ['virnucpro_cli.py', 'input.bam', 'output.tsv', '--resume']):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            out_report='output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None,
+            persistent_models=False,
+            resume=True,
+            v1_fallback=False,
+            v1_attention=False
+        )
+
+
+def test_cli_v1_fallback_flag():
+    """Verify --v1-fallback flag is passed correctly."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_instance.detect_input_type.return_value = 'bam'
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', ['virnucpro_cli.py', 'input.bam', 'output.tsv', '--v1-fallback']):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            out_report='output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None,
+            persistent_models=False,
+            resume=False,
+            v1_fallback=True,
+            v1_attention=False
+        )
+
+
+def test_cli_v1_attention_flag():
+    """Verify --v1-attention flag is passed correctly."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_instance.detect_input_type.return_value = 'bam'
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', ['virnucpro_cli.py', 'input.bam', 'output.tsv', '--v1-attention']):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            out_report='output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=False,
+            gpus=None,
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None,
+            persistent_models=False,
+            resume=False,
+            v1_fallback=False,
+            v1_attention=True
+        )
+
+
+def test_cli_v2_parallel_with_resume():
+    """Verify v2.0 parallel mode with resume option."""
+    with mock.patch('virnucpro.VirNucPro') as mock_virnucpro:
+        mock_instance = mock.MagicMock()
+        mock_instance.detect_input_type.return_value = 'bam'
+        mock_virnucpro.return_value = mock_instance
+
+        with mock.patch('sys.argv', [
+            'virnucpro_cli.py', 'input.bam', 'output.tsv',
+            '--parallel', '--resume', '--gpus', '0,1'
+        ]):
+            virnucpro_cli.main()
+
+        mock_instance.classify.assert_called_once_with(
+            'input.bam',
+            out_report='output.tsv',
+            expected_length=500,
+            use_gpu=None,
+            parallel=True,
+            gpus='0,1',
+            batch_size=None,
+            dnabert_batch_size=None,
+            esm_batch_size=None,
+            threads=None,
+            persistent_models=False,
+            resume=True,
+            v1_fallback=False,
+            v1_attention=False
+        )

@@ -63,7 +63,8 @@ class VirNucPro:
 
     def classify(self, in_bam, out_report, expected_length=500, use_gpu=None,
                  parallel=False, gpus=None, batch_size=None, dnabert_batch_size=None,
-                 esm_batch_size=None, threads=None, persistent_models=False):
+                 esm_batch_size=None, threads=None, persistent_models=False,
+                 resume=False, v1_fallback=False, v1_attention=False):
         """
         Classify reads from BAM file using VirNucPro.
 
@@ -79,6 +80,9 @@ class VirNucPro:
             esm_batch_size: Token batch size for ESM-2 processing.
             threads: Number of CPU threads for translation and merge.
             persistent_models: Keep models loaded in GPU memory between stages.
+            resume: Resume from checkpoint if available.
+            v1_fallback: Use v1.0 multi-worker architecture for ESM-2.
+            v1_attention: Use v1.0-compatible standard attention (exact match, slower).
         """
         with pysam.AlignmentFile(in_bam, 'rb', check_sq=False) as bam:
             is_empty = sum(1 for _ in bam) == 0
@@ -105,7 +109,8 @@ class VirNucPro:
                 tmp_fasta, expected_length, model_path, use_gpu=use_gpu,
                 parallel=parallel, gpus=gpus, batch_size=batch_size,
                 dnabert_batch_size=dnabert_batch_size, esm_batch_size=esm_batch_size,
-                threads=threads, output_dir=tmp_dir, persistent_models=persistent_models
+                threads=threads, output_dir=tmp_dir, persistent_models=persistent_models,
+                resume=resume, v1_fallback=v1_fallback, v1_attention=v1_attention
             )
 
             # New VirNucPro outputs to {output_dir}/input_merged/
@@ -170,7 +175,8 @@ class VirNucPro:
 
     def classify_fasta(self, in_fasta, out_report, expected_length=500, use_gpu=None,
                        parallel=False, gpus=None, batch_size=None, dnabert_batch_size=None,
-                       esm_batch_size=None, threads=None, persistent_models=False):
+                       esm_batch_size=None, threads=None, persistent_models=False,
+                       resume=False, v1_fallback=False, v1_attention=False):
         """
         Classify sequences directly from FASTA file using VirNucPro.
 
@@ -186,6 +192,9 @@ class VirNucPro:
             esm_batch_size: Token batch size for ESM-2 processing.
             threads: Number of CPU threads for translation and merge.
             persistent_models: Keep models loaded in GPU memory between stages.
+            resume: Resume from checkpoint if available.
+            v1_fallback: Use v1.0 multi-worker architecture for ESM-2.
+            v1_attention: Use v1.0-compatible standard attention (exact match, slower).
 
         Note:
             FASTA sequence IDs must be unique. For paired-end data, add /1 and /2
@@ -212,7 +221,8 @@ class VirNucPro:
                 tmp_fasta, expected_length, model_path, use_gpu=use_gpu,
                 parallel=parallel, gpus=gpus, batch_size=batch_size,
                 dnabert_batch_size=dnabert_batch_size, esm_batch_size=esm_batch_size,
-                threads=threads, output_dir=tmp_dir, persistent_models=persistent_models
+                threads=threads, output_dir=tmp_dir, persistent_models=persistent_models,
+                resume=resume, v1_fallback=v1_fallback, v1_attention=v1_attention
             )
 
             # VirNucPro outputs to {output_dir}/input_merged/
@@ -253,7 +263,8 @@ class VirNucPro:
     def _run_prediction(self, fasta_file, expected_length, model_path, use_gpu=None,
                         parallel=False, gpus=None, batch_size=None, dnabert_batch_size=None,
                         esm_batch_size=None, threads=None, output_dir=None,
-                        persistent_models=False):
+                        persistent_models=False, resume=False, v1_fallback=False,
+                        v1_attention=False):
         """
         Run VirNucPro prediction using the refactored CLI.
 
@@ -273,6 +284,9 @@ class VirNucPro:
             threads: Number of CPU threads for translation and merge.
             output_dir: Output directory for results.
             persistent_models: Keep models loaded in GPU memory between stages.
+            resume: Resume from checkpoint if available.
+            v1_fallback: Use v1.0 multi-worker architecture for ESM-2.
+            v1_attention: Use v1.0-compatible standard attention (exact match, slower).
         """
         # Build command for new VirNucPro CLI
         cmd = [
@@ -313,6 +327,14 @@ class VirNucPro:
         # Persistent models option
         if persistent_models:
             cmd.append('--persistent-models')
+
+        # v2.0 options
+        if resume:
+            cmd.append('--resume')
+        if v1_fallback:
+            cmd.append('--v1-fallback')
+        if v1_attention:
+            cmd.append('--v1-attention')
 
         # WHY CUDA_VISIBLE_DEVICES: Standard PyTorch pattern for CPU/GPU control.
         # Setting to "-1" forces CPU mode when GPU unavailable. Cloud VMs may lack GPU.
