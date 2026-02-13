@@ -1,0 +1,24 @@
+Dockerfile
+  505ae68958d06483 34-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.3",
+  "base_commit_sha": "ed7c25caedfe7c0d0e02bd9047cff789a8d4327d",
+  "prompts": {
+    "505ae68958d06483": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb2f41cb-9205-4cc1-b99b-90a72ec5cb1a",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Cesar Arze <cesar.arze@gmail.com>",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 2,
+      "accepted_lines": 3,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/735bc562e45ad4aba34526093b8b24c453db162bc215b4ae66ede56c0529c485"
+    }
+  }
+}
