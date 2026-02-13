@@ -31,7 +31,9 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
 # Install VirNucPro dependencies (refactored version includes all dependencies)
-RUN pip3 install --no-cache-dir -r /opt/VirNucPro/requirements.txt
+# WHY packaging first: flash-attn's setup.py imports packaging.version at build time
+RUN pip3 install --no-cache-dir packaging && \
+    pip3 install --no-cache-dir -r /opt/VirNucPro/requirements.txt
 
 # Capture VirNucPro version at build time
 # WHY after pip install: virnucpro.__init__ imports yaml (pyyaml) which must be installed first.
