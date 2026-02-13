@@ -1,0 +1,32 @@
+Dockerfile
+  22d4b540a83b2fb9 5-7,36-39,53,82
+README.md
+  22d4b540a83b2fb9 5-10,12,153-158,169,175-177,208-211,417
+virnucpro.py
+  22d4b540a83b2fb9 66-67,83-85,112-113,178-179,195-197,224-225,266-267,287-289,331-338
+virnucpro_cli.py
+  22d4b540a83b2fb9 149-168,215-218
+tests/test_cli.py
+  22d4b540a83b2fb9 60-63,88-91,135-138,163-166,218-221,246-249,279-282,307-310,340-343,368-371,397-400,403-517
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.3",
+  "base_commit_sha": "d35088e4275bbfd18fc5edef87a320e7b9460ab4",
+  "prompts": {
+    "22d4b540a83b2fb9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1d011efc-2980-4bf6-a7ef-8497bd3d8cfd",
+        "model": "claude-opus-4-5-20251101"
+      },
+      "human_author": "Cesar Arze <cesar.arze@gmail.com>",
+      "messages": [],
+      "total_additions": 242,
+      "total_deletions": 34,
+      "accepted_lines": 242,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/d11d21f466ea59e5fd18df0a9dc3504cd6ce22be3d347419ff4c7f6f32e7f7bf"
+    }
+  }
+}
