@@ -31,9 +31,13 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
 # Install VirNucPro dependencies (refactored version includes all dependencies)
-# WHY pre-install: flash-attn's setup.py imports packaging and torch at egg_info time,
-# before pip resolves build dependencies. Install them so metadata generation succeeds.
-RUN pip3 install --no-cache-dir packaging torch && \
+# WHY pin torch + cu126 index: Ensures CUDA 12.6 build of torch (not CPU-only).
+# WHY --no-build-isolation for flash-attn: Lets flash-attn detect the installed torch/CUDA
+# versions so pip selects a pre-built wheel (~seconds) instead of compiling from source (~1.5h).
+# WHY separate flash-attn install: Must run after torch is installed in the same environment.
+RUN pip3 install --no-cache-dir packaging && \
+    pip3 install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cu126 && \
+    pip3 install --no-cache-dir flash-attn>=2.6.0 --no-build-isolation && \
     pip3 install --no-cache-dir -r /opt/VirNucPro/requirements.txt
 
 # Capture VirNucPro version at build time

@@ -1,0 +1,34 @@
+name: Free up disk space
+description: Remove preinstalled software and Docker images to reclaim disk space for large builds
+
+runs:
+  using: composite
+  steps:
+    - name: Free up disk space
+      shell: bash
+      run: |
+        echo "Disk space before cleanup:"
+        df -h
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/.ghcup
+        sudo rm -rf /opt/hostedtoolcache
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        sudo rm -rf /usr/share/swift
+        sudo rm -rf /usr/local/julia*
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /usr/local/share/chromium
+        sudo rm -rf /usr/local/share/chrome
+        sudo rm -rf /home/runner/.rustup
+        sudo rm -rf /usr/local/share/powershell
+        sudo rm -rf /opt/google/chrome
+        sudo rm -rf /opt/microsoft/msedge
+        sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri || true
+        sudo apt-get autoremove -y
+        sudo apt-get clean
+        sudo docker image prune --all --force
+        sudo docker system prune --all --volumes --force
+        echo "Disk space after cleanup:"
+        df -h
