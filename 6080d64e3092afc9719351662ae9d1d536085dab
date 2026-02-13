@@ -1,0 +1,30 @@
+.github/actions/free-disk-space/action.yml
+  ed6dbdd12069373f 1-34
+Dockerfile
+  ed6dbdd12069373f 34-40
+.github/workflows/release.yml
+  ed6dbdd12069373f 20,50-51
+.github/workflows/build.yml
+  ed6dbdd12069373f 1,40,52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.3",
+  "base_commit_sha": "6080d64e3092afc9719351662ae9d1d536085dab",
+  "prompts": {
+    "ed6dbdd12069373f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac4398c2-047b-4029-b223-a8acc807a566",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Cesar Arze <cesar.arze@gmail.com>",
+      "messages": [],
+      "total_additions": 47,
+      "total_deletions": 131,
+      "accepted_lines": 47,
+      "overriden_lines": 0,
+      "messages_url": "https://usegitai.com/cas/dcb1c3f326d59ac1d9b8f4a3ffd39c553d1e99e588e4904761c0e5257d038496"
+    }
+  }
+}
