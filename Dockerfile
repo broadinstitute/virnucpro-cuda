@@ -31,8 +31,9 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
 
 # Install VirNucPro dependencies (refactored version includes all dependencies)
-# WHY packaging first: flash-attn's setup.py imports packaging.version at build time
-RUN pip3 install --no-cache-dir packaging && \
+# WHY pre-install: flash-attn's setup.py imports packaging and torch at egg_info time,
+# before pip resolves build dependencies. Install them so metadata generation succeeds.
+RUN pip3 install --no-cache-dir packaging torch && \
     pip3 install --no-cache-dir -r /opt/VirNucPro/requirements.txt
 
 # Capture VirNucPro version at build time
